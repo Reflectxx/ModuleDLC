@@ -100,9 +100,10 @@ public final class ScriptManager implements AutoCloseable {
 
     private void reload(Path path, String source) {
         List<Module> staged = new ArrayList<>();
+        List<ClientCommandManager.Command> stagedCommands = new ArrayList<>();
         CompiledScript nextScript = null;
         try {
-            ScriptApi api = new ScriptApi(source, staged::add);
+            ScriptApi api = new ScriptApi(source, staged::add, stagedCommands::add);
             String extension = extension(path);
             if (extension.equals(".js")) {
                 loadJavaScript(path, api);
@@ -111,7 +112,9 @@ public final class ScriptManager implements AutoCloseable {
             } else {
                 nextScript = loadKotlin(path, api);
             }
+            ClientCommandManager.get().validateSource(source, stagedCommands);
             modules.replaceSource(source, staged);
+            ClientCommandManager.get().replaceSource(source, stagedCommands);
             closeScript(compiledScripts.put(source, nextScript));
             LOGGER.info("Loaded {} module(s) from {}", staged.size(), path.getFileName());
         } catch (Exception exception) {
@@ -332,6 +335,7 @@ public final class ScriptManager implements AutoCloseable {
 
     private void removeSource(String source) {
         modules.removeSource(source);
+        ClientCommandManager.get().removeSource(source);
         closeScript(compiledScripts.remove(source));
         LOGGER.info("Unloaded script {}", source);
     }

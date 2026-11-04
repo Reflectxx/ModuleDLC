@@ -2,10 +2,12 @@ package dev.dlc.client.module;
 
 import dev.dlc.client.hud.HudLayoutStore;
 import dev.dlc.client.script.ScriptContext;
+import dev.dlc.client.script.ScriptRenderContext;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 
 public final class ModuleManager {
     private final Map<String, List<Module>> bySource = new LinkedHashMap<>();
@@ -70,6 +72,15 @@ public final class ModuleManager {
         List<Module> snapshot = all();
         for (Module module : snapshot) {
             if (module.enabled()) module.frame(new ScriptContext(minecraft, module));
+        }
+    }
+
+    public void renderWorld(Minecraft minecraft, WorldRenderContext worldContext) {
+        List<Module> snapshot = all();
+        ScriptRenderContext renderContext = new ScriptRenderContext(worldContext);
+        for (Module module : snapshot) {
+            if (module.enabled())
+                module.renderWorld(new ScriptContext(minecraft, module), renderContext);
         }
     }
 }

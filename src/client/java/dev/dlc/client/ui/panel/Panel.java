@@ -1,6 +1,7 @@
 package dev.dlc.client.ui.panel;
 
 import dev.dlc.client.ClientCore;
+import dev.dlc.client.DiscordRpcManager;
 import dev.dlc.client.render.ui.AnimatedFloat;
 import dev.dlc.client.render.ui.UiDrawList;
 import dev.dlc.client.ui.CsKeybindManager;
@@ -14,6 +15,7 @@ import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -29,7 +31,8 @@ public final class Panel extends Screen {
     private enum View {
         CATEGORY,
         FAVORITES,
-        BINDS
+        BINDS,
+        THEME
     }
 
     private static final Set<String> FAVORITES = new HashSet<>();
@@ -65,6 +68,7 @@ public final class Panel extends Screen {
     private long lastFrame = System.nanoTime();
     private PanelStyle.Layout layout;
     private long moduleRevision;
+    private float themeScroll, themeMaxScroll;
 
     public Panel() {
         super(Component.literal(ClientCore.NAME));
@@ -108,7 +112,7 @@ public final class Panel extends Screen {
         settings.beginFrame(dt);
         boolean interactive = !closing && opacity > .9f && !locked;
         UiDrawList ui = new UiDrawList(graphics);
-        ui.rect(0, 0, width, height, PanelStyle.alpha(0x49000000, opacity));
+        ui.rect(0, 0, width, height, PanelStyle.alpha(PanelStyle.SHADOW, opacity));
         ui.opacity(opacity);
         ui.roundedRect(
                 layout.x(), layout.y(), layout.w(), layout.h(), 9 * layout.s(), PanelStyle.PANEL);
@@ -122,7 +126,7 @@ public final class Panel extends Screen {
                 PanelStyle.BORDER);
         drawHeader(ui, input, interactive);
         drawSidebar(ui, input, interactive, dt);
-        cards.show(filtered());
+        cards.show(view == View.THEME ? List.of() : filtered());
         var bounds =
                 new PanelSettings.Bounds(
                         layout.x() + 4 * layout.s(),
@@ -130,7 +134,11 @@ public final class Panel extends Screen {
                         layout.w() - 8 * layout.s(),
                         layout.h() - 8 * layout.s(),
                         layout.s());
-        cards.draw(ui, layout, bounds, input, interactive && !cards.binding(), dt, opacity);
+        if (view == View.THEME) {
+            drawThemes(ui, input, interactive, dt);
+        } else {
+            cards.draw(ui, layout, bounds, input, interactive && !cards.binding(), dt, opacity);
+        }
         settings.drawPopups(
                 ui,
                 bounds,
@@ -244,12 +252,17 @@ public final class Panel extends Screen {
             searchFocused = false;
             cards.resetInput();
         }
+        if (navigation(ui, input, interactive, "Theme", x, y + 50 * s, w, view == View.THEME, dt)) {
+            view = View.THEME;
+            searchFocused = false;
+            cards.resetInput();
+        }
         float sy = layout.y() + layout.h() - 59 * s;
         boolean searchHover = PanelStyle.contains(input.mx(), input.my(), x, sy, w, 24 * s);
         if (interactive && input.pressed()) searchFocused = searchHover;
-        ui.roundedRect(x, sy, w, 24 * s, 4 * s, 0xFF141A20);
+        ui.roundedRect(x, sy, w, 24 * s, 4 * s, PanelStyle.CARD);
         ui.outlineRoundedRect(
-                x, sy, w, 24 * s, 4 * s, .5f * s, searchFocused ? 0xFF536D7B : PanelStyle.BORDER);
+                x, sy, w, 24 * s, 4 * s, .5f * s, searchFocused ? PanelStyle.ACCENT : PanelStyle.BORDER);
         PanelStyle.icon(ui, "Search", x + 11 * s, sy + 12 * s, 7 * s, PanelStyle.MUTED);
         ui.pushScissor(x + 20 * s, sy, w - 26 * s, 24 * s);
         ui.textCenteredVertically(
@@ -270,19 +283,183 @@ public final class Panel extends Screen {
             ui.line(cursorX, sy + 8 * s, cursorX, sy + 16 * s, .6f * s, PanelStyle.ACCENT);
         }
         ui.popScissor();
-        float toolY = sy + 29 * s, toolW = (w - 6 * s) / 3;
-        if (tool(ui, input, interactive, "Filter", x, toolY, toolW, false)) {
-            enabledOnly = false;
-            view = View.CATEGORY;
-            search = "";
-            cards.resetInput();
+        drawProfile(ui, x, sy + 26 * s, w, 23 * s, s);
+    }
+
+    private void drawThemes(
+            UiDrawList ui, PanelCards.Input input, boolean interactive, float dt) {
+        String needle = search.toLowerCase(Locale.ROOT).strip();
+        List<ThemeManager.Theme> themes =
+                ThemeManager.get().themes().stream()
+                        .filter(
+                                theme ->
+                                        needle.isEmpty()
+                                                || theme.name().toLowerCase(Locale.ROOT).contains(needle)
+                                                || theme.colors().keySet().stream()
+                                                        .anyMatch(
+                                                                role ->
+                                                                        role.toLowerCase(Locale.ROOT)
+                                                                                .contains(needle)))
+                        .toList();
+        float s = layout.s();
+        float width = layout.contentW();
+        float cardHeight = 48 * s;
+        float gap = 5 * s;
+        int rows = themes.size();
+        themeMaxScroll = Math.max(0, rows * (cardHeight + gap) - gap - layout.contentH());
+        themeScroll = Math.max(0, Math.min(themeMaxScroll, themeScroll));
+        ui.pushScissor(layout.contentX(), layout.contentY(), layout.contentW(), layout.contentH());
+        for (int i = 0; i < themes.size(); i++) {
+            ThemeManager.Theme theme = themes.get(i);
+            float x = layout.contentX();
+            float y = layout.contentY() + i * (cardHeight + gap) - themeScroll;
+            if (y + cardHeight < layout.contentY() || y > layout.contentY() + layout.contentH())
+                continue;
+            boolean active = ThemeManager.get().isActive(theme);
+            boolean hover =
+                    interactive
+                            && PanelStyle.contains(input.mx(), input.my(), x, y, width, cardHeight);
+            ui.roundedRect(
+                    x,
+                    y,
+                    width,
+                    cardHeight,
+                    5 * s,
+                    hover ? PanelStyle.HOVER : PanelStyle.CARD);
+            ui.outlineRoundedRect(
+                    x,
+                    y,
+                    width,
+                    cardHeight,
+                    5 * s,
+                    active ? .9f * s : .5f * s,
+                    active ? PanelStyle.ACCENT : PanelStyle.BORDER);
+            ui.text(
+                    x + 8 * s,
+                    y + 7 * s,
+                    7 * s,
+                    active ? PanelStyle.ACCENT : PanelStyle.TEXT,
+                    PanelStyle.fit(theme.name(), width - 32 * s, 7 * s));
+            if (active)
+                ui.centeredIcon(
+                        "check", x + width - 10 * s, y + 9 * s, 6 * s, PanelStyle.ACCENT);
+
+            Map<String, Integer> colors = new java.util.LinkedHashMap<>(PanelStyle.defaultColors());
+            colors.putAll(theme.colors());
+            List<String> roles = PanelStyle.colorRoleOrder();
+            float chipWidth = (width - 16 * s) / 11;
+            for (int colorIndex = 0; colorIndex < roles.size(); colorIndex++) {
+                String role = roles.get(colorIndex);
+                int line = colorIndex / 11;
+                int column = colorIndex % 11;
+                float chipX = x + 8 * s + column * chipWidth;
+                float chipY = y + (21 + line * 14) * s;
+                ui.roundedRect(
+                        chipX,
+                        chipY,
+                        Math.max(1, chipWidth - 2 * s),
+                        5 * s,
+                        1.5f * s,
+                        colors.get(role));
+                ui.text(
+                        chipX,
+                        chipY + 6 * s,
+                        4.8f * s,
+                        PanelStyle.MUTED,
+                        themeRoleLabel(role));
+            }
+            if (hover && input.pressed()) ThemeManager.get().setActiveTheme(theme);
         }
-        if (tool(ui, input, interactive, "Enabled", x + toolW + 3 * s, toolY, toolW, enabledOnly)) {
-            enabledOnly = !enabledOnly;
-            cards.resetInput();
+        if (themes.isEmpty())
+            ui.centeredText(
+                    layout.contentX() + layout.contentW() / 2,
+                    layout.contentY() + 40 * s,
+                    8 * s,
+                    PanelStyle.MUTED,
+                    "No themes found",
+                    false);
+        ui.popScissor();
+    }
+
+    private static String themeRoleLabel(String role) {
+        return switch (role) {
+            case "background" -> "BG";
+            case "surface" -> "CARD";
+            case "elevatedSurface" -> "SURF";
+            case "border" -> "BORD";
+            case "accent" -> "ACC";
+            case "text" -> "TXT";
+            case "settingText" -> "SET";
+            case "mutedText" -> "MUT";
+            case "sectionText" -> "SECT";
+            case "disabledText" -> "OFF";
+            case "error" -> "ERR";
+            case "enabled" -> "ON";
+            case "disabled" -> "DIS";
+            case "hover" -> "HOV";
+            case "selected" -> "SEL";
+            case "favorite" -> "FAV";
+            case "sliderTrack" -> "TRK";
+            case "popupBackground" -> "POP";
+            case "popupSurface" -> "PSF";
+            case "popupBorder" -> "PBD";
+            case "white" -> "WHT";
+            case "shadow" -> "SHD";
+            default -> "";
+        };
+    }
+
+    private void drawProfile(UiDrawList ui, float x, float y, float w, float h, float s) {
+        ui.roundedRect(x, y, w, h, 4 * s, PanelStyle.CARD);
+        ui.outlineRoundedRect(x, y, w, h, 4 * s, .5f * s, PanelStyle.BORDER);
+
+        float iconSize = 15 * s;
+        float iconX = x + 5 * s;
+        float iconY = y + (h - iconSize) / 2;
+        Identifier avatar = DiscordRpcManager.avatarTexture();
+        if (avatar != null) {
+            ui.image(avatar, iconX, iconY, iconSize, iconSize, 0xFFFFFFFF);
+        } else {
+            var player = Minecraft.getInstance().player;
+            Identifier skin =
+                    player != null
+                            ? player.getSkin().body().texturePath()
+                            : Identifier.fromNamespaceAndPath(
+                                    "minecraft", "textures/entity/player/wide/steve.png");
+            ui.imageRegion(
+                    skin,
+                    iconX,
+                    iconY,
+                    iconSize,
+                    iconSize,
+                    8 / 64f,
+                    8 / 64f,
+                    16 / 64f,
+                    16 / 64f,
+                    0xFFFFFFFF);
+            ui.imageRegion(
+                    skin,
+                    iconX,
+                    iconY,
+                    iconSize,
+                    iconSize,
+                    40 / 64f,
+                    8 / 64f,
+                    48 / 64f,
+                    16 / 64f,
+                    0xFFFFFFFF);
         }
-        if (tool(ui, input, interactive, "Collapse", x + 2 * (toolW + 3 * s), toolY, toolW, false))
-            cards.collapseAll();
+
+        String name = DiscordRpcManager.username();
+        if (name == null || name.isBlank()) name = Minecraft.getInstance().getUser().getName();
+        ui.pushScissor(x + 24 * s, y, w - 28 * s, h);
+        ui.textCenteredVertically(
+                x + 24 * s,
+                y + h / 2,
+                6.9f * s,
+                PanelStyle.TEXT,
+                PanelStyle.fit(name, w - 29 * s, 6.9f * s));
+        ui.popScissor();
     }
 
     private boolean navigation(
@@ -301,8 +478,8 @@ public final class Panel extends Screen {
         motion.setTarget(selected ? 1 : hover ? .45f : 0);
         float p = motion.update(dt, 36);
         if (p > .001f) {
-            ui.roundedRect(x, y, w, 23 * s, 4 * s, PanelStyle.alpha(0xFF1B242A, p));
-            ui.outlineRoundedRect(x, y, w, 23 * s, 4 * s, .5f * s, PanelStyle.alpha(0xFF2A3740, p));
+            ui.roundedRect(x, y, w, 23 * s, 4 * s, PanelStyle.alpha(PanelStyle.HOVER, p));
+            ui.outlineRoundedRect(x, y, w, 23 * s, 4 * s, .5f * s, PanelStyle.alpha(PanelStyle.BORDER, p));
         }
         PanelStyle.icon(
                 ui,
@@ -315,7 +492,7 @@ public final class Panel extends Screen {
                 x + 23 * s,
                 y + 11.5f * s,
                 7.2f * s,
-                selected ? PanelStyle.TEXT : 0xFFAFBBC2,
+                selected ? PanelStyle.TEXT : PanelStyle.SELECTED,
                 name);
         if (selected) {
             ui.centeredIcon(
@@ -328,29 +505,6 @@ public final class Panel extends Screen {
         return interactive && hover && input.pressed();
     }
 
-    private boolean tool(
-            UiDrawList ui,
-            PanelCards.Input input,
-            boolean interactive,
-            String icon,
-            float x,
-            float y,
-            float w,
-            boolean active) {
-        float s = layout.s();
-        boolean hover = PanelStyle.contains(input.mx(), input.my(), x, y, w, 23 * s);
-        ui.roundedRect(x, y, w, 23 * s, 4 * s, hover ? 0xFF1C252B : 0xFF141A20);
-        ui.outlineRoundedRect(x, y, w, 23 * s, 4 * s, .5f * s, PanelStyle.BORDER);
-        PanelStyle.icon(
-                ui,
-                icon,
-                x + w / 2,
-                y + 11.5f * s,
-                7 * s,
-                active ? PanelStyle.ACCENT : PanelStyle.MUTED);
-        return interactive && hover && input.pressed();
-    }
-
     @Override
     public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
         if (closing
@@ -358,7 +512,14 @@ public final class Panel extends Screen {
                 || settings.popupOpen()
                 || settings.isDragging()) return true;
         if (layout != null && layout.containsContent((float) mx, (float) my)) {
-            cards.scrollBy(-(float) vertical * 30 * layout.s());
+            if (view == View.THEME)
+                themeScroll =
+                        Math.max(
+                                0,
+                                Math.min(
+                                        themeMaxScroll,
+                                        themeScroll - (float) vertical * 30 * layout.s()));
+            else cards.scrollBy(-(float) vertical * 30 * layout.s());
             return true;
         }
         return super.mouseScrolled(mx, my, horizontal, vertical);

@@ -6,6 +6,7 @@
 ## Возможности
 
 - Загрузка скриптов и горячая перезагрузка при изменении файлов.
+- JavaScript-темы интерфейса с выбором цветов для компонентов и текста.
 - Модули, настройки и HUD-элементы из Script API.
 - Discord Rich Presence со ссылками на [сайт](https://reflectxx.github.io)
   и [документацию](https://reflectxx.github.io/docs).
@@ -38,6 +39,7 @@ Fabric Loader и Fabric API.
 
 - [Быстрый старт](./docs/getting-started.md)
 - [Script API](./docs/Script-API.md)
+- [Темы интерфейса](./docs/themes.md)
 - [Примеры скриптов](./docs/examples.md)
 - [Полный указатель документации](./docs/README.md)
 

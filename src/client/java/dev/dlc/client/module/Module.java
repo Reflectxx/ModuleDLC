@@ -4,6 +4,8 @@ import dev.dlc.client.hud.HudElement;
 import dev.dlc.client.render.ui.UiDrawList;
 import dev.dlc.client.script.ScriptCallback;
 import dev.dlc.client.script.ScriptContext;
+import dev.dlc.client.script.ScriptRenderContext;
+import dev.dlc.client.script.ScriptWorldRenderCallback;
 import dev.dlc.client.script.ScriptErrorReporter;
 import dev.dlc.client.setting.Setting;
 import java.util.List;
@@ -25,6 +27,7 @@ public final class Module {
     private final ScriptCallback onDisable;
     private final ScriptCallback onTick;
     private final ScriptCallback onFrame;
+    private final ScriptWorldRenderCallback onWorldRender;
     private boolean enabled;
     private boolean error;
 
@@ -50,7 +53,8 @@ public final class Module {
                 onEnable,
                 onDisable,
                 onTick,
-                onFrame);
+                onFrame,
+                null);
     }
 
     public Module(
@@ -64,7 +68,8 @@ public final class Module {
             ScriptCallback onEnable,
             ScriptCallback onDisable,
             ScriptCallback onTick,
-            ScriptCallback onFrame) {
+            ScriptCallback onFrame,
+            ScriptWorldRenderCallback onWorldRender) {
         this.id = requireText(id, "id");
         this.name = requireText(name, "name");
         this.description = Objects.requireNonNullElse(description, "");
@@ -76,6 +81,7 @@ public final class Module {
         this.onDisable = onDisable;
         this.onTick = onTick;
         this.onFrame = onFrame;
+        this.onWorldRender = onWorldRender;
     }
 
     public String id() {
@@ -141,6 +147,18 @@ public final class Module {
         if (!invoke(onFrame, context)) {
             enabled = false;
             invoke(onDisable, new ScriptContext(context.minecraft(), this));
+        }
+    }
+
+    public void renderWorld(ScriptContext context, ScriptRenderContext renderContext) {
+        if (!enabled) return;
+        try {
+            if (onWorldRender != null) onWorldRender.invoke(context, renderContext);
+        } catch (Exception exception) {
+            error = true;
+            LOGGER.error("World render callback failed in module '{}'; disabling it", id, exception);
+            ScriptErrorReporter.report(source + " (module " + id + ")", "world render", exception);
+            setEnabled(false);
         }
     }
 

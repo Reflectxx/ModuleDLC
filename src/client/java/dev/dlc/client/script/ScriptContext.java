@@ -7,6 +7,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
@@ -19,10 +20,18 @@ import net.minecraft.world.phys.EntityHitResult;
 public final class ScriptContext {
     private final Minecraft minecraft;
     private final Module module;
+    private final String source;
+    private final ScriptStorage storage;
 
     public ScriptContext(Minecraft minecraft, Module module) {
+        this(minecraft, module, module == null ? "api" : module.source());
+    }
+
+    public ScriptContext(Minecraft minecraft, Module module, String source) {
         this.minecraft = minecraft;
         this.module = module;
+        this.source = source;
+        storage = ScriptStorage.forScript(source);
     }
 
     public ScriptContext(Minecraft minecraft) {
@@ -65,6 +74,43 @@ public final class ScriptContext {
         if (minecraft.level == null) return null;
         var state = minecraft.level.getBlockState(new BlockPos(x, y, z));
         return BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
+    }
+
+    public ScriptStorage storage() {
+        return storage;
+    }
+
+    public List<BlockPos> findBlocks(String blockId, int radius) {
+        if (!(minecraft.level instanceof ClientLevel level)) return List.of();
+        if (radius < 0 || radius > 16)
+            throw new IllegalArgumentException("Block search radius must be between 0 and 16");
+        Identifier identifier = Identifier.tryParse(blockId);
+        if (identifier == null)
+            throw new IllegalArgumentException("Invalid block identifier: " + blockId);
+        var target = BuiltInRegistries.BLOCK.getOptional(identifier)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown block: " + blockId));
+        if (minecraft.player == null) return List.of();
+
+        BlockPos center = minecraft.player.blockPosition();
+        List<BlockPos> found = new java.util.ArrayList<>();
+        int radiusSquared = radius * radius;
+        for (int x = center.getX() - radius; x <= center.getX() + radius; x++) {
+            for (int z = center.getZ() - radius; z <= center.getZ() + radius; z++) {
+                if (!level.hasChunk(x >> 4, z >> 4)) continue;
+                for (int y = Math.max(level.getMinY(), center.getY() - radius);
+                        y <= Math.min(level.getMaxY() - 1, center.getY() + radius);
+                        y++) {
+                    int dx = x - center.getX(), dy = y - center.getY(), dz = z - center.getZ();
+                    if (dx * dx + dy * dy + dz * dz > radiusSquared) continue;
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (level.getBlockState(pos).is(target)) {
+                        found.add(pos.immutable());
+                        if (found.size() == 4096) return List.copyOf(found);
+                    }
+                }
+            }
+        }
+        return List.copyOf(found);
     }
 
     public Module module() {

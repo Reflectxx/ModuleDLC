@@ -27,10 +27,19 @@ public final class ScriptApi {
 
     private final String source;
     private final Consumer<Module> register;
+    private final Consumer<ClientCommandManager.Command> registerCommand;
 
     ScriptApi(String source, Consumer<Module> register) {
+        this(source, register, ignored -> {});
+    }
+
+    ScriptApi(
+            String source,
+            Consumer<Module> register,
+            Consumer<ClientCommandManager.Command> registerCommand) {
         this.source = source;
         this.register = register;
+        this.registerCommand = registerCommand;
     }
 
     public ScriptModuleBuilder module(String id, String name, String category) {
@@ -38,11 +47,22 @@ public final class ScriptApi {
     }
 
     public ScriptModuleBuilder module(String id, String name, String category, String description) {
-        return new ScriptModuleBuilder(source, id, name, category, description, register);
+        return new ScriptModuleBuilder(
+                source, id, name, category, description, register, registerCommand);
     }
 
     public ScriptContext context() {
-        return new ScriptContext(net.minecraft.client.Minecraft.getInstance());
+        return new ScriptContext(net.minecraft.client.Minecraft.getInstance(), null, source);
+    }
+
+    public ScriptStorage storage() {
+        return ScriptStorage.forScript(source);
+    }
+
+    public void command(String name, ScriptCommandCallback callback) {
+        registerCommand.accept(
+                new ClientCommandManager.Command(
+                        ClientCommandManager.normalizeName(name), source, Objects.requireNonNull(callback)));
     }
 
     public void log(String message) {
@@ -56,6 +76,7 @@ public final class ScriptApi {
         private final String category;
         private final String description;
         private final Consumer<Module> register;
+        private final Consumer<ClientCommandManager.Command> registerCommand;
         private final List<Setting<?>> settings = new ArrayList<>();
         private final List<HudElement> hudElements = new ArrayList<>();
         private final Set<String> hudIds = new HashSet<>();
@@ -64,6 +85,7 @@ public final class ScriptApi {
         private ScriptCallback onDisable;
         private ScriptCallback onTick;
         private ScriptCallback onFrame;
+        private ScriptWorldRenderCallback onWorldRender;
         private boolean registered;
 
         private ScriptModuleBuilder(
@@ -72,13 +94,15 @@ public final class ScriptApi {
                 String name,
                 String category,
                 String description,
-                Consumer<Module> register) {
+                Consumer<Module> register,
+                Consumer<ClientCommandManager.Command> registerCommand) {
             this.source = source;
             this.id = id;
             this.name = name;
             this.category = category;
             this.description = description;
             this.register = register;
+            this.registerCommand = registerCommand;
         }
 
         public ScriptModuleBuilder setting(Setting<?> setting) {
@@ -350,6 +374,22 @@ public final class ScriptApi {
             return this;
         }
 
+        public ScriptModuleBuilder onWorldRender(ScriptWorldRenderCallback callback) {
+            ensureNotRegistered();
+            onWorldRender = Objects.requireNonNull(callback);
+            return this;
+        }
+
+        public ScriptModuleBuilder command(String name, ScriptCommandCallback callback) {
+            ensureNotRegistered();
+            registerCommand.accept(
+                    new ClientCommandManager.Command(
+                            ClientCommandManager.normalizeName(name),
+                            source,
+                            Objects.requireNonNull(callback)));
+            return this;
+        }
+
         public void register() {
             ensureNotRegistered();
             registered = true;
@@ -374,7 +414,8 @@ public final class ScriptApi {
                             onEnable,
                             onDisable,
                             onTick,
-                            onFrame));
+                            onFrame,
+                            onWorldRender));
         }
 
         private void ensureNotRegistered() {

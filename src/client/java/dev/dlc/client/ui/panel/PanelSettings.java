@@ -155,7 +155,7 @@ final class PanelSettings {
                             checkSize,
                             checkSize,
                             2.2f * s,
-                            PanelStyle.blend(0xFF1B2329, PanelStyle.ACCENT, p));
+                            PanelStyle.blend(PanelStyle.DISABLED, PanelStyle.ACCENT, p));
                     if (p > .01f)
                         ui.centeredIcon(
                                 "check",
@@ -184,7 +184,7 @@ final class PanelSettings {
                         slider.sync();
                     }
                     float p = slider.model.update(dt);
-                    ui.roundedRect(controlX, ty, controlW, 3.4f * s, 1.7f * s, 0xFF2A3035);
+                    ui.roundedRect(controlX, ty, controlW, 3.4f * s, 1.7f * s, PanelStyle.SLIDER_TRACK);
                     if (p > .001f)
                         ui.roundedRect(
                                 controlX,
@@ -219,7 +219,7 @@ final class PanelSettings {
                     range.update(dt);
                     float lowX = controlX + range.lowProgress.value() * controlW;
                     float highX = controlX + range.highProgress.value() * controlW;
-                    ui.roundedRect(controlX, ty, controlW, 3.4f * s, 1.7f * s, 0xFF2A3035);
+                    ui.roundedRect(controlX, ty, controlW, 3.4f * s, 1.7f * s, PanelStyle.SLIDER_TRACK);
                     if (highX - lowX > .01f * s) {
                         ui.roundedRect(
                                 lowX, ty, highX - lowX, 3.4f * s, 1.7f * s, PanelStyle.ACCENT);
@@ -267,7 +267,6 @@ final class PanelSettings {
 
     /** One floating menu with captured selection, keyboard navigation and viewport fitting. */
     static final class Select {
-        private static final int WHITE = 0xFFF5F5F5;
         private static final int ROW_PITCH = 17;
         private static final int TRIGGER_HEIGHT = 18;
         private final Map<Setting, Entry> entries = new IdentityHashMap<>();
@@ -383,8 +382,8 @@ final class PanelSettings {
                 else open(entry);
             }
             float p = entry.open.value(), h = entry.triggerH * s, radius = 3 * s;
-            ui.roundedRect(x, y, w, h, radius, over ? 0xFF242A30 : 0xFF1B2228);
-            ui.outlineRoundedRect(x, y, w, h, radius, .5f * s, 0xFF252F37);
+            ui.roundedRect(x, y, w, h, radius, over ? PanelStyle.HOVER : PanelStyle.POPUP_SURFACE);
+            ui.outlineRoundedRect(x, y, w, h, radius, .5f * s, PanelStyle.POPUP_BORDER);
             if (menu == entry && p > .005f) {
                 boolean above = geometry != null && geometry.up();
                 ui.rect(
@@ -392,7 +391,7 @@ final class PanelSettings {
                         above ? y : y + h - 3 * s,
                         w - s,
                         3 * s,
-                        over ? 0xFF242A30 : 0xFF1B2228);
+                        over ? PanelStyle.HOVER : PanelStyle.POPUP_SURFACE);
             }
             // The clip starts before the ink. Chosen values remain sharp during selection.
             float textX = x + 6 * s;
@@ -410,14 +409,18 @@ final class PanelSettings {
                 }
             }
             ui.textCenteredVertically(
-                    textX, y + h / 2, 6.8f * s, WHITE, entry.fitLabel(label, textWidth, 6.8f * s));
+                    textX,
+                    y + h / 2,
+                    6.8f * s,
+                    PanelStyle.WHITE,
+                    entry.fitLabel(label, textWidth, 6.8f * s));
             ui.popScissor();
             ui.rotatedCenteredIcon(
                     "chevron-down",
                     x + w - 12 * s,
                     y + h / 2,
                     7 * s,
-                    0xFFAAB7BE,
+                    PanelStyle.MUTED,
                     p * (float) Math.PI);
         }
 
@@ -477,8 +480,8 @@ final class PanelSettings {
             }
             float radius = 3 * s;
             ui.pushScissor(x, revealY, w, reveal);
-            ui.roundedRect(x, y, w, h, radius, alpha(0xFF1B2228, p));
-            ui.outlineRoundedRect(x, y, w, h, radius, .5f * s, alpha(0xFF252F37, p));
+            ui.roundedRect(x, y, w, h, radius, alpha(PanelStyle.POPUP_SURFACE, p));
+            ui.outlineRoundedRect(x, y, w, h, radius, .5f * s, alpha(PanelStyle.POPUP_BORDER, p));
             ui.pushScissor(x + pad, y + pad, w - pad * 2, view);
             ui.roundedRect(
                     x + pad,
@@ -486,7 +489,7 @@ final class PanelSettings {
                     w - pad * 2,
                     rh,
                     2 * s,
-                    alpha(0xFF293139, p));
+                    alpha(PanelStyle.HOVER, p));
             for (int i = 0; i < entry.count(); i++) {
                 float ry = y + pad + i * row - scroll;
                 if (ry + rh < y + pad || ry > y + h - pad) continue;
@@ -498,7 +501,7 @@ final class PanelSettings {
                         6 * s,
                         6 * s,
                         1.3f * s,
-                        alpha(checked ? accent : 0xFF21282E, p));
+                        alpha(checked ? accent : PanelStyle.DISABLED, p));
                 if (checked) {
                     PanelStyle.icon(
                             ui,
@@ -506,7 +509,7 @@ final class PanelSettings {
                             checkboxX + 3 * s,
                             checkboxY + 3 * s,
                             4.5f * s,
-                            alpha(WHITE, p));
+                            alpha(PanelStyle.WHITE, p));
                 } else {
                     ui.outlineRoundedRect(
                             checkboxX,
@@ -515,14 +518,14 @@ final class PanelSettings {
                             6 * s,
                             1.3f * s,
                             .5f * s,
-                            alpha(0xFF303941, p));
+                            alpha(PanelStyle.BORDER, p));
                 }
                 ui.pushScissor(x + 16 * s, ry, w - 22 * s, rh);
                 ui.textCenteredVertically(
                         x + 17 * s,
                         ry + rh / 2,
                         6.2f * s,
-                        alpha(checked ? WHITE : PanelStyle.MUTED, p),
+                        alpha(checked ? PanelStyle.WHITE : PanelStyle.MUTED, p),
                         entry.fitOption(i, w - 24 * s, 6.2f * s));
                 ui.popScissor();
             }
@@ -863,7 +866,8 @@ final class PanelSettings {
                 else if (alpha.contains(mouseX, mouseY)) drag = Drag.ALPHA;
             }
             if (down && drag != null) updateColor(saturation, hue, alpha, mouseX, mouseY);
-            ui.roundedRect(panel.x, panel.y, panel.width, panel.height, 5 * scale, 0xFF171717);
+            ui.roundedRect(
+                    panel.x, panel.y, panel.width, panel.height, 5 * scale, PanelStyle.POPUP_BACKGROUND);
             ui.outlineRoundedRect(
                     panel.x,
                     panel.y,
@@ -871,7 +875,7 @@ final class PanelSettings {
                     panel.height,
                     5 * scale,
                     .6f * scale,
-                    0xFF39454B);
+                    PanelStyle.POPUP_BORDER);
             ui.text(
                     panel.x + 7 * scale,
                     panel.y + 9 * scale,

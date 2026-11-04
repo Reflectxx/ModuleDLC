@@ -87,7 +87,23 @@ public final class ShaderIcon {
             float height,
             int color,
             Render2D.Scissor scissor) {
-        drawTexture(graphics, textureId, x, y, width, height, color, 0, scissor);
+        drawTexture(graphics, textureId, x, y, width, height, color, 0, 0, 1, 1, 0, scissor);
+    }
+
+    public static void drawTextureRegion(
+            GuiGraphics graphics,
+            Identifier textureId,
+            float x,
+            float y,
+            float width,
+            float height,
+            float u0,
+            float v0,
+            float u1,
+            float v1,
+            int color,
+            Render2D.Scissor scissor) {
+        drawTexture(graphics, textureId, x, y, width, height, color, 0, u0, v0, u1, v1, scissor);
     }
 
     private static void drawTexture(
@@ -99,6 +115,23 @@ public final class ShaderIcon {
             float height,
             int color,
             float rotation,
+            Render2D.Scissor scissor) {
+        drawTexture(graphics, textureId, x, y, width, height, color, rotation, 0, 0, 1, 1, scissor);
+    }
+
+    private static void drawTexture(
+            GuiGraphics graphics,
+            Identifier textureId,
+            float x,
+            float y,
+            float width,
+            float height,
+            int color,
+            float rotation,
+            float u0,
+            float v0,
+            float u1,
+            float v1,
             Render2D.Scissor scissor) {
         var texture = Minecraft.getInstance().getTextureManager().getTexture(textureId);
         float centerX = x + width / 2;
@@ -119,8 +152,8 @@ public final class ShaderIcon {
                             -height / 2,
                             cos,
                             sin,
-                            0,
-                            0,
+                            u0,
+                            v0,
                             color);
                     addVertex(
                             builder,
@@ -130,8 +163,8 @@ public final class ShaderIcon {
                             height / 2,
                             cos,
                             sin,
-                            0,
-                            1,
+                            u0,
+                            v1,
                             color);
                     addVertex(
                             builder,
@@ -141,8 +174,8 @@ public final class ShaderIcon {
                             height / 2,
                             cos,
                             sin,
-                            1,
-                            1,
+                            u1,
+                            v1,
                             color);
                     addVertex(
                             builder,
@@ -152,8 +185,8 @@ public final class ShaderIcon {
                             -height / 2,
                             cos,
                             sin,
-                            1,
-                            0,
+                            u1,
+                            v0,
                             color);
                 },
                 Map.of(),

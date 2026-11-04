@@ -5,12 +5,14 @@ import dev.dlc.client.hud.HudLayoutStore;
 import dev.dlc.client.script.ScriptErrorReporter;
 import dev.dlc.client.ui.CsKeybindManager;
 import dev.dlc.client.ui.panel.Panel;
+import dev.dlc.client.ui.panel.ThemeManager;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 
 import net.minecraft.client.KeyMapping;
 import org.lwjgl.glfw.GLFW;
@@ -26,7 +28,9 @@ public class ModuleDLCClient implements ClientModInitializer {
         CsKeybindManager keybinds = CsKeybindManager.get();
         HudOverlay hudOverlay = new HudOverlay();
         DiscordRpcManager discordRpc = new DiscordRpcManager();
+        ThemeManager themes = ThemeManager.get();
         core.scripts().start();
+        themes.start();
         discordRpc.start();
         ClientTickEvents.END_CLIENT_TICK.register(client -> keybinds.tick(client, core.modules()));
         ClientTickEvents.END_CLIENT_TICK.register(core.modules()::tick);
@@ -37,10 +41,13 @@ public class ModuleDLCClient implements ClientModInitializer {
                     core.modules().frame(minecraft);
                     hudOverlay.render(minecraft, core.modules(), graphics);
                 });
+        WorldRenderEvents.AFTER_ENTITIES.register(
+                context -> core.modules().renderWorld(net.minecraft.client.Minecraft.getInstance(), context));
         ClientLifecycleEvents.CLIENT_STOPPING.register(
                 client -> {
                     HudLayoutStore.saveModules(core.modules().all());
                     core.scripts().close();
+                    themes.close();
                     discordRpc.stop();
                 });
 

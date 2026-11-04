@@ -174,7 +174,7 @@ final class PanelCards {
                     1.3f * s,
                     thumb,
                     .65f * s,
-                    0xFF4B5962);
+                    PanelStyle.MUTED);
         }
     }
 
@@ -202,7 +202,7 @@ final class PanelCards {
                 w,
                 h,
                 5 * s,
-                PanelStyle.blend(PanelStyle.CARD, 0xFF1B242A, hoverProgress * .5f));
+                PanelStyle.blend(PanelStyle.CARD, PanelStyle.HOVER, hoverProgress * .5f));
         ui.outlineRoundedRect(
                 x,
                 y,
@@ -212,15 +212,15 @@ final class PanelCards {
                 (module.hasError() ? .9f : .5f) * s,
                 module.hasError()
                         ? PanelStyle.ERROR
-                        : PanelStyle.blend(PanelStyle.BORDER, 0xFF3D505D, hoverProgress));
+                        : PanelStyle.blend(PanelStyle.BORDER, PanelStyle.SELECTED, hoverProgress));
         boolean favorite = favorites.contains(module.id());
         ui.centeredIcon(
                 favorite ? "star-filled" : "star",
                 x + 13 * s,
                 y + 14 * s,
                 6.5f * s,
-                favorite ? 0xFFF3CE80 : module.enabled ? 0xFFCBD8DE : 0xFF63727D);
-        int ink = module.enabled ? PanelStyle.TEXT : 0xFFA6B4BC;
+                favorite ? PanelStyle.FAVORITE : module.enabled ? PanelStyle.ENABLED : PanelStyle.MUTED);
+        int ink = module.enabled ? PanelStyle.TEXT : PanelStyle.DISABLED_TEXT;
         ui.pushScissor(x + 22 * s, y, w - 86 * s, 26 * s);
         float nameSize = 7.2f * s;
         if (module.hasError()) {
@@ -268,12 +268,12 @@ final class PanelCards {
                 13 * s,
                 7 * s,
                 3.5f * s,
-                PanelStyle.blend(0xFF2B343B, PanelStyle.ACCENT, on));
+                PanelStyle.blend(PanelStyle.DISABLED, PanelStyle.ACCENT, on));
         ui.circle(
                 tx + (3.5f + 6 * on) * s,
                 y + 14 * s,
                 2.1f * s,
-                PanelStyle.blend(0xFF59666E, PanelStyle.TEXT, on));
+                PanelStyle.blend(PanelStyle.MUTED, PanelStyle.TEXT, on));
         int line = 0;
         for (String text : card.descriptionLines) {
             ui.text(x + 10 * s, y + (28 + line++ * 9) * s, 6.5f * s, PanelStyle.MUTED, text);

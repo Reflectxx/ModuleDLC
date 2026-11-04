@@ -141,6 +141,22 @@ public class UiDrawList {
                 graphics, texture, x, y, width, height, apply(tint), scissor());
     }
 
+    public void imageRegion(
+            Identifier texture,
+            float x,
+            float y,
+            float width,
+            float height,
+            float u0,
+            float v0,
+            float u1,
+            float v1,
+            int tint) {
+        if (graphics == null) return;
+        ShaderIcon.drawTextureRegion(
+                graphics, texture, x, y, width, height, u0, v0, u1, v1, apply(tint), scissor());
+    }
+
     public void centeredIcon(String name, float x, float y, float size, int color) {
         icon(name, x - size / 2, y - size / 2, size, color);
     }
