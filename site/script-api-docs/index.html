@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ModuleDLC Script API — Документация</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="docs-header">
+        <div class="container header-container">
+            <div class="logo">
+                <div class="logo-mark">MD</div>
+                <div class="logo-text">ModuleDLC API</div>
+            </div>
+            <div class="search-wrap">
+                <input type="text" id="doc-search" placeholder="Поиск по документации…" class="doc-search-input">
+            </div>
+            <a href="../client-overview/" class="btn btn-sm btn-outline">На обзор клиента</a>
+        </div>
+    </header>
+    <div class="docs-body">
+        <nav class="docs-sidebar">
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">Документация</h3>
+                <ul class="sidebar-nav">
+                    <li><a href="#overview" class="sidebar-link active">Обзор API</a></li>
+                    <li><a href="#quickstart" class="sidebar-link">Быстрый старт</a></li>
+                    <li><a href="#api-module" class="sidebar-link">api.module</a></li>
+                    <li><a href="#callbacks" class="sidebar-link">Callbacks</a></li>
+                    <li><a href="#script-context" class="sidebar-link">ScriptContext (ctx)</a></li>
+                    <li><a href="#hud" class="sidebar-link">HUD-объекты</a></li>
+                    <li><a href="#settings" class="sidebar-link">Настройки модулей</a></li>
+                    <li><a href="#keybinds" class="sidebar-link">Клавиши биндов</a></li>
+                    <li><a href="#lifecycle" class="sidebar-link">Жизненный цикл</a></li>
+                    <li><a href="#examples" class="sidebar-link">Примеры кода</a></li>
+                    <li><a href="#limitations" class="sidebar-link">Ограничения</a></li>
+                </ul>
+            </div>
+        </nav>
+        <main class="docs-content">
+            <article class="doc-page" id="overview">
+                <h1>ModuleDLC Script API</h1>
+                <p>ModuleDLC — клиентский мод для Minecraft, который позволяет создавать и настраивать собственные модули на JavaScript, Java и Kotlin. Добавляй настройки, бинды и HUD-элементы, а изменения скриптов проверяй прямо в игре благодаря горячей перезагрузке.</p>
+                <p>Каждый скрипт регистрирует модуль через <code>api.module(id, name, category)</code>. Модули появляются в меню по категориям; их можно включать, настраивать и привязывать к клавишам.</p>
+                <div class="callout info">
+                    <strong>ModuleDLC — Minecraft настраивается под тебя.</strong>
+                </div>
+                <div class="callout info">
+                    <strong>Допустимые категории:</strong> Combat, Movement, Player, Visuals, UI, Misc. Если указать другую, модуль не зарегистрируется.
+                </div>
+            </article>
+            <article class="doc-page" id="quickstart">
+                <h1>Быстрый старт</h1>
+                <p>Скрипты загружаются из:</p>
+                <div class="code-block">
+                    <code>.minecraft/config/moduledlc/scripts/</code>
+                </div>
+                <p>При первом запуске ModuleDLC создаёт эту папку. В development-запуске это обычно <code>run/config/moduledlc/scripts/</code>.</p>
+                <h2>Пример модуля (JavaScript)</h2>
+                <div class="code-block">
+<pre><code>var hello = api.module(
+    "hello",
+    "Hello",
+    "Misc",
+    "Пример пользовательского модуля"
+);
+
+hello.onEnable(function (ctx) {
+    ctx.message("Модуль включён");
+});
+
+hello.onTick(function (ctx) {
+    if (!ctx.inGame()) return;
+    // Здесь можно читать локального игрока и мир.
+});
+
+hello.register();</code></pre>
+                </div>
+                <p>После успешной загрузки модуль появится в категории <code>Misc</code>. Откройте меню ModuleDLC и включите его.</p>
+            </article>
+            <article class="doc-page" id="api-module">
+                <h1>api.module</h1>
+                <p>Создаёт и возвращаетビルдер модуля:</p>
+                <div class="code-block">
+<pre><code>api.module(id, name, category, description?)</code></pre>
+                </div>
+                <table class="api-table">
+                    <thead>
+                        <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>id</code></td><td>String</td><td>Уникальный идентификатор модуля</td></tr>
+                        <tr><td><code>name</code></td><td>String</td><td>Отображаемое имя в меню</td></tr>
+                        <tr><td><code>category</code></td><td>String</td><td>Одна из: Combat, Movement, Player, Visuals, UI, Misc</td></tr>
+                        <tr><td><code>description</code></td><td>String</td><td>Описание (опционально)</td></tr>
+                    </tbody>
+                </table>
+                <p class="note"><code>id</code> должен быть уникальным среди всех загруженных модулей. <code>name</code> и <code>category</code> не должны быть пустыми.</p>
+            </article>
+            <article class="doc-page" id="callbacks">
+                <h1>Callbacks модуля</h1>
+                <p>Все callbacks получают <code>ScriptContext</code> и выполняются клиентской логикой ModuleDLC:</p>
+                <table class="api-table">
+                    <thead>
+                        <tr><th>Callback</th><th>Когда вызывается</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>onEnable(ctx)</code></td><td>При включении модуля пользователем</td></tr>
+                        <tr><td><code>onDisable(ctx)</code></td><td>При выключении, выгрузке или ошибке в callback</td></tr>
+                        <tr><td><code>onTick(ctx)</code></td><td>Каждый клиентский тик, пока модуль включён</td></tr>
+                        <tr><td><code>onFrame(ctx)</code></td><td>Каждый кадр, пока модуль включён</td></tr>
+                    </tbody>
+                </table>
+                <p>Используйте <code>onDisable</code> для отмены временных изменений (например, сброса спринта). Если callback выбрасывает исключение, модуль отключается с пометкой <code>(error)</code>.</p>
+            </article>
